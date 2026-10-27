@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, APIResponse } from '@playwright/test';
 
 test('create a new pet', async ({ request }) => {
 
@@ -23,8 +23,9 @@ test ('Create pet y delete', async({request}) => {
     type: "Perro",
     age: 1
   }
-  let response
-  let deleteResponse
+let response!: APIResponse;
+  let deleteResponse!: APIResponse;
+  
   await test.step('envío de post', async() => {
   response = await request.post ('/pets', {data: payload})
 })
