@@ -1,24 +1,79 @@
 name: Playwright Tests
+
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+
 jobs:
   test:
-    timeout-minutes: 60
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
+
     - name: Install dependencies
       run: npm ci
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+
     - name: Run Playwright tests
+      id: run-playwright
       run: npx playwright test
+
+    # --- AGENTE DE QA CON GEMINI EN CASO DE FALLA ---
+    - name: AI QA Agent - Gemini Analysis
+      if: failure()
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: |
+        echo "🤖 Agente QA con Gemini analizando la falla del test..."
+        
+        python3 -c "
+        import os, urllib.request, json
+
+        api_key = os.environ.get('GEMINI_API_KEY')
+        if not api_key:
+            print('⚠️ No se encontró GEMINI_API_KEY en los Secrets de GitHub.')
+            exit(0)
+
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}'
+        
+        prompt = '''Actúa como un QA Lead Senior especialista en Playwright y APIs REST. 
+        Analiza la falla del pipeline de CI/CD y responde de forma breve en español:
+        1. Qué falló exactamente.
+        2. Causa raíz probable (status code, payload, timeout, etc.).
+        3. Solución sugerida para el código.
+        '''
+
+        payload = {
+            'contents': [{
+                'parts': [{'text': prompt}]
+            }]
+        }
+
+        req = urllib.request.Request(
+            url, 
+            data=json.dumps(payload).encode('utf-8'), 
+            headers={'Content-Type': 'application/json'}
+        )
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                res = json.loads(response.read().decode('utf-8'))
+                analysis = res['candidates'][0]['content']['parts'][0]['text']
+                print('\n========================================')
+                print('🤖 ANÁLISIS DEL AGENTE QA (GEMINI)')
+                print('========================================\n')
+                print(analysis)
+        except Exception as e:
+            print(f'Error al consultar a Gemini: {e}')
+        "
+
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
