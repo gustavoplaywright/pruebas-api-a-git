@@ -25,7 +25,7 @@ jobs:
       id: run-playwright
       run: npx playwright test
 
-    # --- AGENTE DE QA RESILIENTE CON RETRY Y FALLBACK ---
+    # --- AGENTE DE QA RESILIENTE CON MODELOS VIGENTES ---
     - name: AI QA Agent - Gemini Analysis
       if: failure()
       env:
@@ -51,7 +51,8 @@ jobs:
         2. Causa raíz probable (status code, payload, timeout, etc.).
         3. Solución sugerida para el código.\`;
 
-        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'];
+        // Usamos los nombres exactos requeridos por la API en la captura
+        const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-pro-preview'];
 
         async function generateWithRetry(modelName, maxRetries = 3) {
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -87,7 +88,7 @@ jobs:
               console.log(\`❌ Modelo \${model} falló: \${err.message || err}\`);
             }
           }
-          console.error('❌ Todos los modelos fallaron debido a alta demanda temporal.');
+          console.error('❌ Todos los modelos fallaron.');
         }
 
         run();
