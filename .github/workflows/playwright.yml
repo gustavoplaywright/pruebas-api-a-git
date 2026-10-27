@@ -24,7 +24,9 @@ jobs:
     - name: Run Playwright tests
       id: run-playwright
       # Guardamos el output en un archivo de log para que el agente pueda leerlo si falla
-      run: npx playwright test 2>&1 | tee playwright-output.log
+      run: |
+        set -o pipefail
+        npx playwright test 2>&1 | tee playwright-output.log
 
     # --- AGENTE DE QA RESILIENTE CON LECTURA DE LOGS ---
     - name: AI QA Agent - Gemini Analysis
