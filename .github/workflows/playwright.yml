@@ -25,7 +25,7 @@ jobs:
       id: run-playwright
       run: npx playwright test
 
-    # --- AGENTE DE QA CON GEMINI EN CASO DE FALLA ---
+    # --- AGENTE DE QA RESILIENTE CON RETRY Y FALLBACK ---
     - name: AI QA Agent - Gemini Analysis
       if: failure()
       env:
@@ -45,26 +45,49 @@ jobs:
 
         const ai = new GoogleGenAI({ apiKey });
 
-        async function run() {
-          try {
-            const prompt = \`Actúa como un QA Lead Senior especialista en Playwright y APIs REST.
+        const prompt = \`Actúa como un QA Lead Senior especialista en Playwright y APIs REST.
         Analiza la falla del pipeline de CI/CD y responde de forma breve en español:
         1. Qué falló exactamente.
         2. Causa raíz probable (status code, payload, timeout, etc.).
         3. Solución sugerida para el código.\`;
 
-            const response = await ai.models.generateContent({
-              model: 'gemini-3.8-flash',
-              contents: prompt,
-            });
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'];
 
-            console.log('\n========================================');
-            console.log('🤖 ANÁLISIS DEL AGENTE QA (GEMINI)');
-            console.log('========================================\n');
-            console.log(response.text);
-          } catch (error) {
-            console.error('Error al consultar a Gemini:', error.message || error);
+        async function generateWithRetry(modelName, maxRetries = 3) {
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              return await ai.models.generateContent({
+                model: modelName,
+                contents: prompt,
+              });
+            } catch (error) {
+              const errorMsg = error.message || String(error);
+              if ((errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE')) && attempt < maxRetries) {
+                console.log(\`⚠️ [503 High Demand] Reintentando (\${attempt}/\${maxRetries}) en modelo \${modelName}...\`);
+                await new Promise(res => setTimeout(res, attempt * 3000));
+              } else {
+                throw error;
+              }
+            }
           }
+        }
+
+        async function run() {
+          for (const model of modelsToTry) {
+            try {
+              console.log(\`🔄 Consultando modelo \${model}...\`);
+              const response = await generateWithRetry(model);
+              
+              console.log('\n========================================');
+              console.log('🤖 ANÁLISIS DEL AGENTE QA (GEMINI)');
+              console.log('========================================\n');
+              console.log(response.text);
+              return;
+            } catch (err) {
+              console.log(\`❌ Modelo \${model} falló: \${err.message || err}\`);
+            }
+          }
+          console.error('❌ Todos los modelos fallaron debido a alta demanda temporal.');
         }
 
         run();
