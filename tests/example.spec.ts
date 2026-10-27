@@ -16,3 +16,30 @@ test('create a new pet', async ({ request }) => {
   expect(newPetResponse.ok()).toBeTruthy();
 
 });
+
+test ('Create pet y delete', async({request}) => {
+  const payload = {
+    name: "Bingo3",
+    type: "Perro",
+    age: 1
+  }
+  let response
+  let deleteResponse
+  await test.step('envío de post', async() => {
+  response = await request.post ('/pets', {data: payload})
+})
+
+  await test.step ('response 200', async() => {
+    expect(response.status()).toBe(201)
+  })
+const body = await response.json()
+const id = body.data.id
+console.log(body.data.id)
+
+ await test.step ('borro el creado', async () => {
+   deleteResponse = await request.delete(`/pets/${id}`)
+   })
+ await test.step ('asercion del delete', async () => {
+  expect(deleteResponse.status()).toBe(204)
+})
+})
