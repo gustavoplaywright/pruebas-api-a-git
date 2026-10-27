@@ -23,9 +23,10 @@ jobs:
 
     - name: Run Playwright tests
       id: run-playwright
-      run: npx playwright test
+      # Guardamos el output en un archivo de log para que el agente pueda leerlo si falla
+      run: npx playwright test 2>&1 | tee playwright-output.log
 
-    # --- AGENTE DE QA RESILIENTE CON MODELOS VIGENTES ---
+    # --- AGENTE DE QA RESILIENTE CON LECTURA DE LOGS ---
     - name: AI QA Agent - Gemini Analysis
       if: failure()
       env:
@@ -35,6 +36,7 @@ jobs:
         npm install @google/genai --no-save
 
         node -e "
+        const fs = require('fs');
         const { GoogleGenAI } = require('@google/genai');
 
         const apiKey = process.env.GEMINI_API_KEY;
@@ -43,15 +45,29 @@ jobs:
           process.exit(0);
         }
 
+        // Leemos el archivo de logs generado por Playwright (últimos 3000 caracteres)
+        let errorLog = 'No se pudo leer el archivo de logs de Playwright.';
+        try {
+          if (fs.existsSync('playwright-output.log')) {
+            const rawLog = fs.readFileSync('playwright-output.log', 'utf8');
+            errorLog = rawLog.slice(-3000); // Tomamos el final donde está el error real
+          }
+        } catch (e) {
+          console.log('Error leyendo el log:', e.message);
+        }
+
         const ai = new GoogleGenAI({ apiKey });
 
         const prompt = \`Actúa como un QA Lead Senior especialista en Playwright y APIs REST.
-        Analiza la falla del pipeline de CI/CD y responde de forma breve en español:
+        Analiza el siguiente log de falla de un pipeline de CI/CD de Playwright y responde de forma breve en español:
+
         1. Qué falló exactamente.
         2. Causa raíz probable (status code, payload, timeout, etc.).
-        3. Solución sugerida para el código.\`;
+        3. Solución sugerida para el código.
 
-        // Usamos los nombres exactos requeridos por la API en la captura
+        --- LOG DE ERROR DE PLAYWRIGHT ---
+        \${errorLog}\`;
+
         const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-pro-preview'];
 
         async function generateWithRetry(modelName, maxRetries = 3) {
