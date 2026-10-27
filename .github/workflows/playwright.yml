@@ -41,7 +41,8 @@ jobs:
             print('⚠️ No se encontró GEMINI_API_KEY en los Secrets de GitHub.')
             exit(0)
 
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}'
+        # Endpoint actualizado a gemini-2.5-flash
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}'
         
         prompt = '''Actúa como un QA Lead Senior especialista en Playwright y APIs REST. 
         Analiza la falla del pipeline de CI/CD y responde de forma breve en español:
