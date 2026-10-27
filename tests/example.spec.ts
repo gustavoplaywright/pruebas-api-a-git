@@ -30,8 +30,8 @@ let response!: APIResponse;
   response = await request.post ('/pets', {data: payload})
 })
 
-  await test.step ('response 200', async() => {
-    expect(response.status()).toBe(500)
+  await test.step ('response 201', async() => {
+    expect(response.status()).toBe(201)
   })
 const body = await response.json()
 const id = body.data.id
@@ -41,6 +41,6 @@ console.log(body.data.id)
    deleteResponse = await request.delete(`/pets/${id}`)
    })
  await test.step ('asercion del delete', async () => {
-  expect(deleteResponse.status()).toBe(404)
+  expect(deleteResponse.status()).toBe(204)
 })
 })
